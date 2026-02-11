@@ -80,7 +80,17 @@ def timeline_extract_documents(req: TimelineDocumentsRequest, db: Session = Depe
                 failed_documents.append({"document_id": doc.id, "filename": doc.filename, "reason": "empty_text"})
                 continue
             processed_documents += 1
-            merged_items.extend(items)
+            merged_items.extend(
+                [
+                    {
+                        **item,
+                        "document_id": doc.id,
+                        "filename": doc.filename,
+                        "source": f"Dokument: {doc.filename}",
+                    }
+                    for item in items
+                ]
+            )
         except RuntimeError as e:
             failed_documents.append({"document_id": doc.id, "filename": doc.filename, "reason": str(e)})
         except Exception:

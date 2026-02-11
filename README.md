@@ -85,6 +85,13 @@ curl -X POST "http://localhost:8000/documents/upload" \
   -F "file=@/absolute/path/to/file.pdf"
 ```
 
+Upload ZIP (with multiple PDFs):
+
+```bash
+curl -X POST "http://localhost:8000/documents/upload" \
+  -F "file=@/absolute/path/to/files.zip"
+```
+
 Ask a question (uses FAISS context):
 
 ```bash
@@ -110,7 +117,7 @@ curl "http://localhost:8000/documents/status"
 ## Notes
 
 - API startup fails fast if `OPENAI_API_KEY` is missing.
-- Upload currently accepts PDF only.
+- Upload accepts single PDF files and ZIP archives containing PDFs.
 - SQLite stores document metadata; FAISS stores vector index + retrieval metadata.
 
 ## Tests

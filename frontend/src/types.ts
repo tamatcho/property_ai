@@ -12,6 +12,8 @@ export type DocumentItem = {
   uploaded_at?: string | null;
 };
 
+export type DocumentStatus = "indexed" | "processing" | "error";
+
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -21,6 +23,9 @@ export type ChatMessage = {
 };
 
 export type TimelineItem = {
+  document_id?: number;
+  filename?: string;
+  source?: string;
   title: string;
   date_iso: string;
   time_24h?: string | null;

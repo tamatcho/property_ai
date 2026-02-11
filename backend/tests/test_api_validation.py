@@ -1,6 +1,8 @@
 import asyncio
+import io
 from pathlib import Path
 import sys
+import zipfile
 
 from fastapi import HTTPException
 import openai
@@ -45,7 +47,7 @@ def test_documents_upload_rejects_non_pdf_extension():
     with pytest.raises(HTTPException) as exc:
         asyncio.run(upload_pdf(file=file, db=None))
     assert exc.value.status_code == 400
-    assert exc.value.detail == "Only PDF files are supported"
+    assert exc.value.detail == "Only PDF or ZIP files are supported"
 
 
 def test_documents_upload_rejects_invalid_pdf_signature():
@@ -54,6 +56,27 @@ def test_documents_upload_rejects_invalid_pdf_signature():
         asyncio.run(upload_pdf(file=file, db=None))
     assert exc.value.status_code == 400
     assert exc.value.detail == "Uploaded file is not a valid PDF"
+
+
+def test_documents_upload_rejects_invalid_zip_file():
+    file = _DummyUpload(filename="bundle.zip", content=b"not-a-real-zip")
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(upload_pdf(file=file, db=None))
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "Uploaded ZIP file is invalid"
+
+
+def test_documents_upload_rejects_zip_without_pdf():
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("notes.txt", "hello")
+    file = _DummyUpload(filename="bundle.zip", content=buffer.getvalue())
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(upload_pdf(file=file, db=None))
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "ZIP contains no PDF files"
 
 
 def test_chat_rejects_empty_question():
