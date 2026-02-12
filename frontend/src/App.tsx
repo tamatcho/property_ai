@@ -7,9 +7,9 @@ import ToastContainer from "./components/ToastContainer";
 import { ApiError, apiFetch, normalizeApiError, uploadWithProgress } from "./lib/api";
 import { AuthUser, ChatMessage, DocumentItem, DocumentStatus, PropertyItem, Source, TimelineItem, Toast, UiState } from "./types";
 
-const BASE_KEY = "property_ai_base_url";
-const CHAT_HISTORY_KEY_PREFIX = "property_ai_chat_history";
-const ACTIVE_PROPERTY_KEY = "property_ai_active_property_id";
+const BASE_KEY = "ndiah_base_url";
+const CHAT_HISTORY_KEY_PREFIX = "ndiah_chat_history";
+const ACTIVE_PROPERTY_KEY = "ndiah_active_property_id";
 const DEFAULT_API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const EXAMPLE_QUESTIONS = [
@@ -981,7 +981,7 @@ export default function App() {
           <section className="layout-top reveal">
             <header className="hero hero-compact">
               <div className="hero-topline">
-                <p className="eyebrow">Property AI</p>
+                <p className="eyebrow">NDIAH</p>
                 <span className={`api-indicator ${apiState === "error" ? "is-offline" : apiState === "loading" ? "is-loading" : "is-ready"}`}>
                   {apiIndicator}
                 </span>
@@ -1018,7 +1018,7 @@ export default function App() {
           <section className="layout-top reveal">
             <header className="hero hero-compact">
               <div className="hero-topline">
-                <p className="eyebrow">Property AI</p>
+                <p className="eyebrow">NDIAH</p>
                 <span className={`api-indicator ${apiState === "error" ? "is-offline" : apiState === "loading" ? "is-loading" : "is-ready"}`}>
                   {apiIndicator}
                 </span>
@@ -1051,7 +1051,7 @@ export default function App() {
             <section className="layout-top reveal">
               <header className="hero hero-compact">
                 <div className="hero-topline">
-                  <p className="eyebrow">Property AI</p>
+                  <p className="eyebrow">NDIAH</p>
                   <span className={`api-indicator ${apiState === "error" ? "is-offline" : apiState === "loading" ? "is-loading" : "is-ready"}`}>
                     {apiIndicator}
                   </span>

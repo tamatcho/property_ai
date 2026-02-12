@@ -1,4 +1,4 @@
-## Property AI MVP
+## NDIAH MVP
 
 FastAPI backend for:
 - PDF upload and chunking
@@ -69,7 +69,7 @@ This setup is free to start and easy to upgrade later.
    - In Render: `New +` -> `Blueprint`
    - Select your repo (Render reads `render.yaml`)
    - Set secret env var: `OPENAI_API_KEY`
-   - Deploy and copy backend URL (example: `https://property-ai-backend.onrender.com`)
+   - Deploy and copy backend URL (example: `https://ndiah-backend.onrender.com`)
 3. Deploy frontend on Vercel:
    - Import project from GitHub, set Root Directory to `frontend`
    - Add env var `VITE_API_BASE_URL` = your Render backend URL

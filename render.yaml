@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: property-ai-backend
+    name: ndiah-backend
     runtime: python
     plan: free
     rootDir: backend

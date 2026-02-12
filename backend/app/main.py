@@ -6,7 +6,7 @@ from .routes import auth, documents, chat, timeline, properties
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Property AI MVP")
+app = FastAPI(title="NDIAH MVP")
 
 app.add_middleware(
     CORSMiddleware,

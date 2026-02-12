@@ -44,7 +44,7 @@ class Settings:
     FAISS_DIR: str = os.getenv("FAISS_DIR", str(BASE_DIR / "storage" / "faiss"))
     DATABASE_URL: str = _resolve_database_url()
     SESSION_SECRET: str = os.getenv("SESSION_SECRET", "dev-insecure-session-secret")
-    SESSION_COOKIE_NAME: str = os.getenv("SESSION_COOKIE_NAME", "property_ai_session")
+    SESSION_COOKIE_NAME: str = os.getenv("SESSION_COOKIE_NAME", "ndiah_session")
     SESSION_TTL_SECONDS: int = int(os.getenv("SESSION_TTL_SECONDS", "86400"))
     MAGIC_LINK_TTL_MINUTES: int = int(os.getenv("MAGIC_LINK_TTL_MINUTES", "15"))
     MAX_PDF_BYTES: int = int(os.getenv("MAX_PDF_BYTES", str(10 * 1024 * 1024)))
