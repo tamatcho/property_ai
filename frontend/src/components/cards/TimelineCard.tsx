@@ -30,6 +30,7 @@ export default function TimelineCard(props: Props) {
   const [archiveMounted, setArchiveMounted] = useState(false);
   const [archiveClosing, setArchiveClosing] = useState(false);
   const [lastAnimatedSeed, setLastAnimatedSeed] = useState<number | null>(null);
+  const [openQuoteId, setOpenQuoteId] = useState<string | null>(null);
   const formatGroupDate = (dateIso: string) => {
     const date = new Date(dateIso);
     if (Number.isNaN(date.getTime())) return dateIso;
@@ -80,6 +81,10 @@ export default function TimelineCard(props: Props) {
             {sortedItems.map((item, idx) => {
               const shouldAnimateCard = withAnimation && shouldAnimateBatch && animatedCardsCount < 5;
               if (shouldAnimateCard) animatedCardsCount += 1;
+              const cardId = `${item.document_id ?? "doc"}-${dateIso}-${idx}`;
+              const quote = (item.source_quote || "").trim();
+              const hasQuote = quote.length > 0;
+              const isQuoteOpen = openQuoteId === cardId;
               return (
                 <article
                   className={`timeline-card ${archived ? "timeline-card-archived" : ""} timeline-card-priority-${props.normalizeCategory(
@@ -87,7 +92,7 @@ export default function TimelineCard(props: Props) {
                   )} ${
                     shouldAnimateCard ? "timeline-card-animated" : ""
                   }`}
-                  key={`${dateIso}-${idx}-${item.title}`}
+                  key={cardId}
                 >
                   <div className="timeline-card-head">
                     <div className="timeline-title">{item.title || "Ohne Titel"}</div>
@@ -105,7 +110,26 @@ export default function TimelineCard(props: Props) {
                       {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(item.amount_eur)}
                     </div>
                   ) : null}
-                  <div className="timeline-source">Quelle: {item.source || item.filename || "Rohtext-Extraktion"}</div>
+                  <div className="timeline-footer">
+                    <div className="timeline-source">Quelle: {item.source || item.filename || "Rohtext-Extraktion"}</div>
+                    {hasQuote ? (
+                      <button
+                        type="button"
+                        className="timeline-quote-toggle"
+                        aria-expanded={isQuoteOpen}
+                        aria-controls={`quote-${cardId}`}
+                        onClick={() => toggleQuote(cardId)}
+                      >
+                        Beleg ⓘ
+                      </button>
+                    ) : null}
+                  </div>
+                  {hasQuote && isQuoteOpen ? (
+                    <div className="timeline-quote-popover" id={`quote-${cardId}`} role="note">
+                      <div className="timeline-quote-label">Beleg:</div>
+                      <div className="timeline-quote-text">{quote}</div>
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
@@ -212,6 +236,10 @@ export default function TimelineCard(props: Props) {
     if (!archiveClosing) return;
     setArchiveMounted(false);
     setArchiveClosing(false);
+  };
+
+  const toggleQuote = (id: string) => {
+    setOpenQuoteId((current) => (current === id ? null : id));
   };
 
   return (

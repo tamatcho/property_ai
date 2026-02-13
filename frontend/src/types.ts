@@ -29,6 +29,7 @@ export type TimelineItem = {
   document_id?: number;
   filename?: string;
   source?: string;
+  source_quote?: string | null;
   title: string;
   date_iso: string;
   time_24h?: string | null;
