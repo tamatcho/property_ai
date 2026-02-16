@@ -186,7 +186,7 @@ def timeline_extract_documents(
                     for item in items
                 ]
             )
-        except RuntimeError:
+        except RuntimeError as e:
             failed_documents.append({"document_id": doc.id, "filename": doc.filename, "reason": str(e)})
         except Exception:
             failed_documents.append(

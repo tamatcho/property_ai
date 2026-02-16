@@ -10,6 +10,11 @@ client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 CATEGORY_PRIORITY = {"deadline": 0, "payment": 1, "meeting": 2, "info": 3}
+DATE_PATTERN = re.compile(r"\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.\d{2,4})\b")
+TIMELINE_KEYWORD_PATTERN = re.compile(
+    r"\b(f[aä]llig|frist|sp[aä]testens|zahlung|nachzahlung|versammlung|etv|termin|sitzung|widerspruch|einreichung)\b",
+    re.IGNORECASE,
+)
 
 
 class TimelineItem(BaseModel):
@@ -35,6 +40,33 @@ class TimelineItem(BaseModel):
 
 class TimelineExtraction(BaseModel):
     items: List[TimelineItem]
+
+
+def _compress_document_for_timeline(document_text: str, max_chars: int) -> str:
+    text = (document_text or "").strip()
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return text
+
+    lines = [line.strip() for line in text.splitlines()]
+    hit_indexes: set[int] = set()
+    for index, line in enumerate(lines):
+        if not line:
+            continue
+        if DATE_PATTERN.search(line) or TIMELINE_KEYWORD_PATTERN.search(line):
+            start = max(0, index - 2)
+            end = min(len(lines), index + 3)
+            hit_indexes.update(range(start, end))
+
+    selected_lines = [lines[i] for i in sorted(hit_indexes) if lines[i]]
+    condensed = "\n".join(selected_lines)
+    if len(condensed) < min(4000, max_chars // 4):
+        head = text[: max_chars // 2]
+        tail = text[- max_chars // 4 :]
+        condensed = f"{head}\n...\n{condensed}\n...\n{tail}".strip()
+
+    return condensed[:max_chars]
 
 
 def _extract_json_payload(content: str) -> dict:
@@ -66,6 +98,9 @@ def _extract_json_payload(content: str) -> dict:
 
 
 def extract_timeline(document_text: str) -> TimelineExtraction:
+    user_text = _compress_document_for_timeline(
+        document_text, settings.TIMELINE_EXTRACTION_INPUT_CHARS
+    )
     try:
         resp = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
@@ -103,11 +138,16 @@ Ausgabeformat:
 {"items":[{"title":"...","date_iso":"YYYY-MM-DD","time_24h":null,"category":"meeting|payment|deadline|info","amount_eur":null,"description":"...","source_quote":"..."}]}
 """,
                 },
-                {"role": "user", "content": document_text[:120000]},
+                {"role": "user", "content": user_text},
             ],
             response_format={"type": "json_object"},
+            max_completion_tokens=settings.TIMELINE_EXTRACTION_RESPONSE_TOKENS,
+            timeout=settings.TIMELINE_EXTRACTION_TIMEOUT_SECONDS,
         )
     except Exception as e:
+        message = str(e).lower()
+        if "timeout" in message or "timed out" in message:
+            raise RuntimeError("Timeline extraction request timed out") from e
         raise RuntimeError("Timeline extraction request to OpenAI failed") from e
 
     try:
@@ -132,4 +172,4 @@ Ausgabeformat:
             item.title.lower(),
         ),
     )
-    return TimelineExtraction(items=sorted_items[:25])
+    return TimelineExtraction(items=sorted_items[: settings.TIMELINE_EXTRACTION_MAX_ITEMS])

@@ -64,6 +64,18 @@ class Settings:
         ).split(",")
         if origin.strip()
     ]
+    TIMELINE_EXTRACTION_INPUT_CHARS: int = int(
+        os.getenv("TIMELINE_EXTRACTION_INPUT_CHARS", "40000")
+    )
+    TIMELINE_EXTRACTION_TIMEOUT_SECONDS: float = float(
+        os.getenv("TIMELINE_EXTRACTION_TIMEOUT_SECONDS", "45")
+    )
+    TIMELINE_EXTRACTION_RESPONSE_TOKENS: int = int(
+        os.getenv("TIMELINE_EXTRACTION_RESPONSE_TOKENS", "1200")
+    )
+    TIMELINE_EXTRACTION_MAX_ITEMS: int = int(
+        os.getenv("TIMELINE_EXTRACTION_MAX_ITEMS", "25")
+    )
 
 
 settings = Settings()
