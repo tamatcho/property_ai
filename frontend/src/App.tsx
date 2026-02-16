@@ -1056,13 +1056,15 @@ export default function App() {
 
   const filteredTimeline = useMemo(() => {
     const sorted = [...timelineItems].sort((a, b) => {
+      const da = new Date(a.date_iso).getTime();
+      const db = new Date(b.date_iso).getTime();
+      if (da !== db) return db - da;
+      const timeCmp = (b.time_24h || "00:00").localeCompare(a.time_24h || "00:00");
+      if (timeCmp !== 0) return timeCmp;
       const pa = timelinePriority(a.category || "info");
       const pb = timelinePriority(b.category || "info");
       if (pa !== pb) return pa - pb;
-      const da = new Date(a.date_iso).getTime();
-      const db = new Date(b.date_iso).getTime();
-      if (da !== db) return da - db;
-      return (a.time_24h || "99:99").localeCompare(b.time_24h || "99:99");
+      return (a.title || "").localeCompare(b.title || "");
     });
 
     return sorted.filter((item) => {
