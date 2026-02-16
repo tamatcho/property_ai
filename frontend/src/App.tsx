@@ -23,6 +23,7 @@ const AUTH_TOKEN_KEY = "ndiah_firebase_id_token";
 const LANGUAGE_KEY = "ndiah_language";
 const DEFAULT_API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const TIMELINE_LIST_TIMEOUT_MS = 90000;
 const TIMELINE_REBUILD_TIMEOUT_MS = 180000;
 const TIMELINE_REPROCESS_TIMEOUT_MS = 120000;
 const EXAMPLE_QUESTIONS = [
@@ -865,7 +866,7 @@ export default function App() {
       const { data } = await apiFetch<TimelineItem[]>(
         `${apiBase}/timeline?property_id=${encodeURIComponent(activePropertyId)}&language=${encodeURIComponent(selectedLanguage)}`,
         {
-        timeoutMs: 15000
+        timeoutMs: TIMELINE_LIST_TIMEOUT_MS
         }
       );
       const items = Array.isArray(data) ? data : [];
@@ -912,7 +913,7 @@ export default function App() {
       );
       const { data: list } = await apiFetch<TimelineItem[]>(
         `${apiBase}/timeline?property_id=${encodeURIComponent(activePropertyId)}&language=${encodeURIComponent(selectedLanguage)}`,
-        { timeoutMs: 15000 }
+        { timeoutMs: TIMELINE_LIST_TIMEOUT_MS }
       );
       const items = Array.isArray(list) ? list : [];
       setTimelineItems(items);
