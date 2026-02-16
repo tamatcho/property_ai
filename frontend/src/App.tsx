@@ -258,17 +258,36 @@ export default function App() {
     }
   };
 
-  const syncBackendSessionAfterFirebaseAuth = async (firebaseEmail?: string | null) => {
-    try {
+  const syncBackendSessionAfterFirebaseAuth = async (firebaseUser: User) => {
+    const fetchSession = async () => {
       const { data } = await apiFetch<AuthUser>(`${apiBase}/auth/me`);
       setCurrentUser(data);
       await loadProperties();
       return data;
+    };
+
+    try {
+      return await fetchSession();
     } catch (e) {
-      setCurrentUser(null);
-      if (firebaseEmail) {
-        addToast("success", "Firebase Auth erfolgreich", firebaseEmail);
+      if (e instanceof ApiError && e.status === 401) {
+        try {
+          const refreshedToken = await firebaseUser.getIdToken(true);
+          setFirebaseIdToken(refreshedToken);
+          localStorage.setItem(AUTH_TOKEN_KEY, refreshedToken);
+          setApiAuthToken(refreshedToken);
+          return await fetchSession();
+        } catch (retryError) {
+          setCurrentUser(null);
+          addToast(
+            "error",
+            "Backend-Session fehlgeschlagen",
+            `Token konnte nicht im Backend verifiziert werden. Railway/Firebase-Admin prüfen (FIREBASE_SERVICE_ACCOUNT_JSON, gleiches Projekt). ${normalizeApiError(retryError)}`
+          );
+          return null;
+        }
       }
+
+      setCurrentUser(null);
       addToast(
         "error",
         "Backend-Session fehlgeschlagen",
@@ -311,8 +330,10 @@ export default function App() {
       const creds = await signInWithEmailAndPassword(auth, email, authPassword);
       const token = await creds.user.getIdToken();
       setFirebaseIdToken(token);
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+      setApiAuthToken(token);
 
-      const me = await syncBackendSessionAfterFirebaseAuth(creds.user.email);
+      const me = await syncBackendSessionAfterFirebaseAuth(creds.user);
       if (me) {
         addToast("success", "Eingeloggt", me.email);
       }
@@ -339,8 +360,10 @@ export default function App() {
       const creds = await createUserWithEmailAndPassword(auth, email, authPassword);
       const token = await creds.user.getIdToken();
       setFirebaseIdToken(token);
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+      setApiAuthToken(token);
 
-      const me = await syncBackendSessionAfterFirebaseAuth(creds.user.email);
+      const me = await syncBackendSessionAfterFirebaseAuth(creds.user);
       if (me) {
         addToast("success", "Registrierung erfolgreich", me.email);
       }
