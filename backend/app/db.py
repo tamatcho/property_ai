@@ -30,7 +30,7 @@ def _prepare_sqlite_path(url: str) -> None:
     except OSError as exc:
         raise RuntimeError(
             f"SQLite path is not writable: {db_file.parent}. "
-            "Set DATABASE_URL to a writable location or use Postgres on Render."
+            "Set DATABASE_URL to a writable location or use hosted Postgres."
         ) from exc
 
 connect_args = {}

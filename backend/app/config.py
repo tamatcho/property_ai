@@ -7,8 +7,12 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 
-def _is_render() -> bool:
-    return bool(os.getenv("RENDER"))
+def _is_railway() -> bool:
+    return bool(
+        os.getenv("RAILWAY_ENVIRONMENT")
+        or os.getenv("RAILWAY_PROJECT_ID")
+        or os.getenv("RAILWAY_SERVICE_ID")
+    )
 
 
 def _is_postgres_url(url: str) -> bool:
@@ -16,15 +20,15 @@ def _is_postgres_url(url: str) -> bool:
 
 
 def _resolve_database_url() -> str:
-    if _is_render():
+    if _is_railway():
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
             raise RuntimeError(
-                "DATABASE_URL is required on Render and must point to Postgres."
+                "DATABASE_URL is required on hosted environments and must point to Postgres."
             )
         if not _is_postgres_url(database_url):
             raise RuntimeError(
-                "Invalid DATABASE_URL on Render. Expected a Postgres URL."
+                "Invalid DATABASE_URL on hosted environment. Expected a Postgres URL."
             )
         return database_url
 

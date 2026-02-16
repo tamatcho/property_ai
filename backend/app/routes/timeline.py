@@ -1,16 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
+import hashlib
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import Literal
 
 from ..firebase_auth import get_current_user
 from ..db import get_db
-from ..models import Document, TimelineItem, User
+from ..models import Document, TimelineItem, TimelineItemTranslation, User
 from ..property_access import get_owned_property_or_404
 from ..extractors import extract_timeline
+from ..rag import translate_timeline_fields
 from ..timeline_service import extract_and_store_timeline_for_document
 
 router = APIRouter(prefix="/timeline", tags=["timeline"], dependencies=[Depends(get_current_user)])
+
+SUPPORTED_TIMELINE_LANGUAGES = {"de", "en", "fr"}
 
 class TimelineRequest(BaseModel):
     raw_text: str
@@ -25,6 +30,7 @@ class TimelineDocumentsRequest(BaseModel):
 def list_timeline(
     property_id: int,
     document_id: int | None = None,
+    language: Literal["de", "en", "fr"] = "de",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -35,6 +41,79 @@ def list_timeline(
         query = query.filter(TimelineItem.document_id == document_id)
     rows = query.order_by(TimelineItem.date_iso.asc(), TimelineItem.time_24h.asc(), TimelineItem.id.asc()).all()
 
+    if language not in SUPPORTED_TIMELINE_LANGUAGES:
+        raise HTTPException(status_code=400, detail="Unsupported language. Use one of: de, en, fr")
+
+    translated_fields: dict[int, tuple[str, str]] = {}
+    if language != "de" and rows:
+        item_ids = [item.id for item, _ in rows]
+        source_fingerprints = {
+            item.id: hashlib.sha256(
+                f"{item.title}\n{item.description}".encode("utf-8")
+            ).hexdigest()
+            for item, _ in rows
+        }
+
+        cached_rows = (
+            db.query(TimelineItemTranslation)
+            .filter(
+                TimelineItemTranslation.language == language,
+                TimelineItemTranslation.timeline_item_id.in_(item_ids),
+            )
+            .all()
+        )
+        cache_by_item_id = {cache.timeline_item_id: cache for cache in cached_rows}
+
+        pending_items: list[TimelineItem] = []
+        for item, _ in rows:
+            cached = cache_by_item_id.get(item.id)
+            if cached and cached.source_fingerprint == source_fingerprints[item.id]:
+                translated_fields[item.id] = (
+                    cached.translated_title,
+                    cached.translated_description,
+                )
+                continue
+            pending_items.append(item)
+
+        changed_cache = False
+        for item in pending_items:
+            try:
+                translated = translate_timeline_fields(
+                    title=item.title,
+                    description=item.description,
+                    target_language=language,
+                )
+            except RuntimeError:
+                translated_fields[item.id] = (item.title, item.description)
+                continue
+
+            translated_title = translated.get("title", item.title)
+            translated_description = translated.get("description", item.description)
+            translated_fields[item.id] = (translated_title, translated_description)
+
+            cached = cache_by_item_id.get(item.id)
+            if cached:
+                cached.translated_title = translated_title
+                cached.translated_description = translated_description
+                cached.source_fingerprint = source_fingerprints[item.id]
+            else:
+                db.add(
+                    TimelineItemTranslation(
+                        timeline_item_id=item.id,
+                        language=language,
+                        translated_title=translated_title,
+                        translated_description=translated_description,
+                        source_fingerprint=source_fingerprints[item.id],
+                    )
+                )
+            changed_cache = True
+
+        if changed_cache:
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+
     return [
         {
             "timeline_item_id": item.id,
@@ -42,12 +121,13 @@ def list_timeline(
             "document_id": item.document_id,
             "filename": doc.filename,
             "document_uploaded_at": doc.uploaded_at.isoformat() if doc.uploaded_at else None,
-            "title": item.title,
+            "title": translated_fields.get(item.id, (item.title, item.description))[0],
             "date_iso": item.date_iso,
             "time_24h": item.time_24h,
             "category": item.category,
             "amount_eur": item.amount_eur,
-            "description": item.description,
+            "description": translated_fields.get(item.id, (item.title, item.description))[1],
+            "source_quote": item.source_quote,
         }
         for item, doc in rows
     ]

@@ -58,28 +58,38 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 Open: `http://127.0.0.1:5173`
 
-## Free Hosting (Phone Test)
+## Hosting (Railway + Supabase + Vercel)
 
-### Option A (recommended): Render (Backend) + Vercel (Frontend)
+### Backend on Railway, Database on Supabase
 
-This setup is free to start and easy to upgrade later.
+1. Create Supabase project and copy `Connection string` (`URI`).
+2. In Supabase, use the pooled Postgres URL as `DATABASE_URL`.
+   Example:
+   `postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres`
+3. Push this repo to GitHub.
+4. Create a Railway project and connect this repo.
+5. Railway reads `railway.toml` in repo root (build + start are preconfigured for `backend`).
+6. Set Railway environment variables:
+   - `DATABASE_URL` = Supabase Postgres URL
+   - `OPENAI_API_KEY` = your key
+   - optional: `OPENAI_MODEL`, `EMBED_MODEL`, `CORS_ORIGINS`
+   - if Firebase auth is used: `FIREBASE_SERVICE_ACCOUNT_JSON`
+7. Deploy and copy backend URL.
 
-1. Push this repo to GitHub.
-2. Deploy backend on Render:
-   - In Render: `New +` -> `Blueprint`
-   - Select your repo (Render reads `render.yaml`)
-   - Set secret env var: `OPENAI_API_KEY`
-   - Deploy and copy backend URL (example: `https://ndiah-backend.onrender.com`)
-3. Deploy frontend on Vercel:
-   - Import project from GitHub, set Root Directory to `frontend`
-   - Add env var `VITE_API_BASE_URL` = your Render backend URL
-   - Deploy
-4. Open Vercel URL on your phone and run `Health prüfen` in the app.
+### Frontend on Vercel
 
-Notes:
-- Render free web services can sleep after inactivity, so first request may take ~30-60s.
-- Render Free filesystem is ephemeral (not persistent across restarts/redeploys), and free services spin down on idle.
-- This app stores required runtime state in the hosted database (documents/chunks/timeline/auth/properties), so it does not depend on local filesystem persistence.
+1. Import repo in Vercel, set Root Directory to `frontend`.
+2. Set `VITE_API_BASE_URL` to the Railway backend URL.
+3. Deploy.
+
+### One-time DB migration (existing deployments)
+
+If your database already has `timeline_items`, run once:
+
+```sql
+ALTER TABLE timeline_items
+ADD COLUMN IF NOT EXISTS source_quote TEXT;
+```
 
 ## API Usage
 
@@ -131,7 +141,7 @@ curl "http://localhost:8000/documents/status"
 
 - API startup fails fast if `OPENAI_API_KEY` is missing.
 - Upload accepts single PDF files and ZIP archives containing PDFs.
-- `DATABASE_URL` should point to Postgres in hosted environments.
+- `DATABASE_URL` should point to Postgres in hosted environments (Railway).
 - On startup, the app runs `Base.metadata.create_all()` for MVP schema creation.
 - For production schema evolution, use migrations (e.g., Alembic).
 

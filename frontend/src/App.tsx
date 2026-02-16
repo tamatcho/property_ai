@@ -20,6 +20,7 @@ const BASE_KEY = "ndiah_base_url";
 const CHAT_HISTORY_KEY_PREFIX = "ndiah_chat_history";
 const ACTIVE_PROPERTY_KEY = "ndiah_active_property_id";
 const AUTH_TOKEN_KEY = "ndiah_firebase_id_token";
+const LANGUAGE_KEY = "ndiah_language";
 const DEFAULT_API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const EXAMPLE_QUESTIONS = [
@@ -27,6 +28,12 @@ const EXAMPLE_QUESTIONS = [
   "Wann ist die nächste Eigentümerversammlung?",
   "Welche Fristen stehen bald an?"
 ];
+type AppLanguage = "de" | "en" | "fr";
+
+function parseLanguage(raw: string | null): AppLanguage {
+  if (raw === "en" || raw === "fr") return raw;
+  return "de";
+}
 
 function uuid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -82,6 +89,7 @@ export default function App() {
   const [apiBase, setApiBase] = useState(
     () => (localStorage.getItem(BASE_KEY) || DEFAULT_API_BASE).replace(/\/+$/, "")
   );
+  const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>(() => parseLanguage(localStorage.getItem(LANGUAGE_KEY)));
 
   const [apiState, setApiState] = useState<UiState>("idle");
   const [apiOutput, setApiOutput] = useState("");
@@ -136,11 +144,16 @@ export default function App() {
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
+  const lastProfileLanguageSyncRef = useRef<string>("");
   const isLocalDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
   useEffect(() => {
     localStorage.setItem(BASE_KEY, apiBase);
   }, [apiBase]);
+
+  useEffect(() => {
+    localStorage.setItem(LANGUAGE_KEY, selectedLanguage);
+  }, [selectedLanguage]);
 
   useEffect(() => {
     if (firebaseIdToken) {
@@ -163,6 +176,36 @@ export default function App() {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      lastProfileLanguageSyncRef.current = "";
+      return;
+    }
+    const syncMarker = `${currentUser.id}:${selectedLanguage}`;
+    if (lastProfileLanguageSyncRef.current === syncMarker) return;
+    lastProfileLanguageSyncRef.current = syncMarker;
+    let cancelled = false;
+
+    const syncProfileLanguage = async () => {
+      try {
+        await apiFetch(`${apiBase}/auth/me`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preferred_language: selectedLanguage }),
+          timeoutMs: 8000
+        });
+      } catch (e) {
+        if (cancelled) return;
+        if (e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 422)) return;
+      }
+    };
+
+    void syncProfileLanguage();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, currentUser, selectedLanguage]);
 
   useEffect(() => {
     if (activePropertyId == null) {
@@ -229,7 +272,7 @@ export default function App() {
       addToast(
         "error",
         "Backend-Session fehlgeschlagen",
-        `Token konnte nicht im Backend verifiziert werden. Render/Firebase-Admin prüfen (FIREBASE_SERVICE_ACCOUNT_JSON, gleiches Projekt). ${normalizeApiError(e)}`
+        `Token konnte nicht im Backend verifiziert werden. Railway/Firebase-Admin prüfen (FIREBASE_SERVICE_ACCOUNT_JSON, gleiches Projekt). ${normalizeApiError(e)}`
       );
       return null;
     }
@@ -676,7 +719,7 @@ export default function App() {
       const { data } = await apiFetch<{ answer: string; sources: Source[] }>(`${apiBase}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, property_id: activePropertyId }),
+        body: JSON.stringify({ question: q, property_id: activePropertyId, language: selectedLanguage }),
         timeoutMs: 30000
       });
       setChatHistory((prev) => [
@@ -782,7 +825,7 @@ export default function App() {
     setTimelineDetails(`${documents.length} Dokument(e) im Bestand.`);
     try {
       const { data } = await apiFetch<TimelineItem[]>(
-        `${apiBase}/timeline?property_id=${encodeURIComponent(activePropertyId)}`,
+        `${apiBase}/timeline?property_id=${encodeURIComponent(activePropertyId)}&language=${encodeURIComponent(selectedLanguage)}`,
         {
         timeoutMs: 15000
         }
@@ -829,7 +872,7 @@ export default function App() {
         }
       );
       const { data: list } = await apiFetch<TimelineItem[]>(
-        `${apiBase}/timeline?property_id=${encodeURIComponent(activePropertyId)}`,
+        `${apiBase}/timeline?property_id=${encodeURIComponent(activePropertyId)}&language=${encodeURIComponent(selectedLanguage)}`,
         { timeoutMs: 15000 }
       );
       const items = Array.isArray(list) ? list : [];
@@ -1042,6 +1085,13 @@ export default function App() {
   const timelineCurrentGrouped = useMemo(() => groupTimelineByDate(timelineCurrentItems), [timelineCurrentItems]);
   const timelineArchiveGrouped = useMemo(() => groupTimelineByDate(timelineArchiveItems), [timelineArchiveItems]);
 
+  useEffect(() => {
+    if (!currentUser || !activePropertyId) return;
+    if (documents.length === 0) return;
+    void loadTimelineFromStore(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLanguage]);
+
   const documentsById = useMemo(
     () =>
       Object.fromEntries(
@@ -1086,6 +1136,18 @@ export default function App() {
                 <span className={`api-indicator ${apiState === "error" ? "is-offline" : apiState === "loading" ? "is-loading" : "is-ready"}`}>
                   {apiIndicator}
                 </span>
+                <div className="language-control">
+                  <label htmlFor="globalLanguageLogin">Sprache</label>
+                  <select
+                    id="globalLanguageLogin"
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(parseLanguage(e.target.value))}
+                  >
+                    <option value="de">Deutsch</option>
+                    <option value="en">English</option>
+                    <option value="fr">Francais</option>
+                  </select>
+                </div>
               </div>
               <h1>Dokumente verstehen. Fragen stellen. Fristen sehen.</h1>
               <p className="sub">Melde dich an, um deine Properties, Uploads, Timeline und Chat zu nutzen.</p>
@@ -1127,6 +1189,18 @@ export default function App() {
                 <span className={`api-indicator ${apiState === "error" ? "is-offline" : apiState === "loading" ? "is-loading" : "is-ready"}`}>
                   {apiIndicator}
                 </span>
+                <div className="language-control">
+                  <label htmlFor="globalLanguageNoProperty">Sprache</label>
+                  <select
+                    id="globalLanguageNoProperty"
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(parseLanguage(e.target.value))}
+                  >
+                    <option value="de">Deutsch</option>
+                    <option value="en">English</option>
+                    <option value="fr">Francais</option>
+                  </select>
+                </div>
               </div>
               <div className="row wrap">
                 <span>Eingeloggt als: <strong>{currentUser.email}</strong></span>
@@ -1160,6 +1234,18 @@ export default function App() {
                   <span className={`api-indicator ${apiState === "error" ? "is-offline" : apiState === "loading" ? "is-loading" : "is-ready"}`}>
                     {apiIndicator}
                   </span>
+                  <div className="language-control">
+                    <label htmlFor="globalLanguageMain">Sprache</label>
+                    <select
+                      id="globalLanguageMain"
+                      value={selectedLanguage}
+                      onChange={(e) => setSelectedLanguage(parseLanguage(e.target.value))}
+                    >
+                      <option value="de">Deutsch</option>
+                      <option value="en">English</option>
+                      <option value="fr">Francais</option>
+                    </select>
+                  </div>
                 </div>
                 <h1>Dokumente verstehen. Fragen stellen. Fristen sehen.</h1>
                 <p className="sub">Upload links, Timeline rechts, Chat unten.</p>

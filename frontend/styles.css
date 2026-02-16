@@ -190,6 +190,22 @@ body {
   flex-wrap: wrap;
 }
 
+.language-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-control label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.language-control select {
+  min-width: 120px;
+}
+
 .api-indicator {
   border: 1px solid var(--border-soft);
   border-radius: 999px;

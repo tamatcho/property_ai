@@ -3,8 +3,10 @@ backend/.env
 backend/storage/app.db
 backend/storage/uploads/
 backend/storage/faiss/
+storage/
 __pycache__/
 *.pyc
+*.tsbuildinfo
 frontend/node_modules/
 frontend/dist/
 frontend/.vercel/

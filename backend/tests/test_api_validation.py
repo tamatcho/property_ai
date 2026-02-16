@@ -28,7 +28,7 @@ openai.OpenAI = _DummyOpenAI
 from app.main import validate_settings
 from app.config import settings
 from app.db import Base
-from app.models import Chunk, Document, LoginToken, Property, TimelineItem, User
+from app.models import Chunk, Document, LoginToken, Property, TimelineItem, TimelineItemTranslation, User
 from app.auth import get_current_user, hash_login_token
 from app.routes.auth import RequestLinkBody, logout, me, request_link, verify_magic_link
 from app.routes.chat import ChatRequest, chat
@@ -256,6 +256,98 @@ def test_get_source_snippet_found(auth_db):
     assert res["chunk_id"] == "11-0"
     assert res["snippet"] == "abc"
     assert res["filename"] == "sample.pdf"
+
+
+def test_list_timeline_defaults_to_german_without_translation_call(auth_db, monkeypatch):
+    user = _seed_user(auth_db, "timeline-default@example.com")
+    property_obj = _seed_property(auth_db, user.id, "Timeline House")
+    doc = Document(property_id=property_obj.id, filename="timeline.pdf", path="/tmp/timeline.pdf")
+    auth_db.add(doc)
+    auth_db.commit()
+    auth_db.refresh(doc)
+
+    item = TimelineItem(
+        document_id=doc.id,
+        property_id=property_obj.id,
+        title="Nebenkostenabrechnung prüfen",
+        date_iso="2026-03-01",
+        time_24h="10:00",
+        category="deadline",
+        amount_eur=125.5,
+        description="Bitte die Abrechnung bis Ende der Woche kontrollieren.",
+        source_quote="Bitte bis Ende der Woche kontrollieren.",
+    )
+    auth_db.add(item)
+    auth_db.commit()
+
+    def fail_if_called(**kwargs):
+        raise AssertionError("translate_timeline_fields must not be called for language=de")
+
+    monkeypatch.setattr("app.routes.timeline.translate_timeline_fields", fail_if_called)
+    res = list_timeline(property_id=property_obj.id, db=auth_db, current_user=user)
+    assert len(res) == 1
+    assert res[0]["title"] == "Nebenkostenabrechnung prüfen"
+    assert res[0]["description"] == "Bitte die Abrechnung bis Ende der Woche kontrollieren."
+    assert res[0]["date_iso"] == "2026-03-01"
+    assert res[0]["category"] == "deadline"
+    assert res[0]["amount_eur"] == 125.5
+    assert res[0]["source_quote"] == "Bitte bis Ende der Woche kontrollieren."
+
+
+def test_list_timeline_translates_and_caches_by_language(auth_db, monkeypatch):
+    user = _seed_user(auth_db, "timeline-cache@example.com")
+    property_obj = _seed_property(auth_db, user.id, "Timeline Cache")
+    doc = Document(property_id=property_obj.id, filename="cache.pdf", path="/tmp/cache.pdf")
+    auth_db.add(doc)
+    auth_db.commit()
+    auth_db.refresh(doc)
+
+    item = TimelineItem(
+        document_id=doc.id,
+        property_id=property_obj.id,
+        title="Heizung warten lassen",
+        date_iso="2026-04-15",
+        time_24h=None,
+        category="info",
+        amount_eur=None,
+        description="Wartung durch Fachbetrieb organisieren.",
+        source_quote="Wartung durch Fachbetrieb.",
+    )
+    auth_db.add(item)
+    auth_db.commit()
+
+    calls = {"count": 0}
+
+    def fake_translate_timeline_fields(title: str, description: str, target_language: str):
+        calls["count"] += 1
+        assert target_language == "en"
+        return {
+            "title": f"{title} (EN)",
+            "description": f"{description} (EN)",
+        }
+
+    monkeypatch.setattr("app.routes.timeline.translate_timeline_fields", fake_translate_timeline_fields)
+
+    first = list_timeline(property_id=property_obj.id, language="en", db=auth_db, current_user=user)
+    assert len(first) == 1
+    assert first[0]["title"] == "Heizung warten lassen (EN)"
+    assert first[0]["description"] == "Wartung durch Fachbetrieb organisieren. (EN)"
+    assert first[0]["date_iso"] == "2026-04-15"
+    assert first[0]["category"] == "info"
+    assert first[0]["source_quote"] == "Wartung durch Fachbetrieb."
+    assert calls["count"] == 1
+
+    cached_rows = auth_db.query(TimelineItemTranslation).filter(TimelineItemTranslation.language == "en").all()
+    assert len(cached_rows) == 1
+    assert cached_rows[0].translated_title == "Heizung warten lassen (EN)"
+    assert cached_rows[0].translated_description == "Wartung durch Fachbetrieb organisieren. (EN)"
+
+    second = list_timeline(property_id=property_obj.id, language="en", db=auth_db, current_user=user)
+    assert len(second) == 1
+    assert second[0]["title"] == "Heizung warten lassen (EN)"
+    assert second[0]["description"] == "Wartung durch Fachbetrieb organisieren. (EN)"
+    assert second[0]["source_quote"] == "Wartung durch Fachbetrieb."
+    assert calls["count"] == 1
 
 
 def test_get_source_snippet_not_found(auth_db):

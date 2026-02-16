@@ -39,6 +39,7 @@ def extract_and_store_timeline_for_document(
                     category=item["category"],
                     amount_eur=item.get("amount_eur"),
                     description=item["description"],
+                    source_quote=item.get("source_quote"),
                 )
                 for item in items
             ]

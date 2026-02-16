@@ -22,6 +22,11 @@ class ChatAnswer(BaseModel):
     missing_info: list[str]
 
 
+class TimelineTextTranslation(BaseModel):
+    title: str
+    description: str
+
+
 def embed_texts(texts: list[str]) -> np.ndarray:
     if not texts:
         return np.empty((0, 0), dtype="float32")
@@ -110,13 +115,32 @@ def search(query: str, db: Session, user_id: int, property_id: int | None = None
     return [{**candidates[i], "score": float(scores[i])} for i in best_idx]
 
 
-def answer_with_context(question: str, contexts: list[dict]) -> dict:
+def answer_with_context(question: str, contexts: list[dict], language: str = "de") -> dict:
+    language_labels = {
+        "de": "Deutsch",
+        "en": "English",
+        "fr": "Francais",
+    }
+    output_language = language_labels.get(language)
+    if output_language is None:
+        raise RuntimeError("Unsupported language. Use one of: de, en, fr")
+
     if not contexts:
+        fallback_answer = {
+            "de": "Im bereitgestellten Kontext wurden keine passenden Informationen gefunden.",
+            "en": "No matching information was found in the provided context.",
+            "fr": "Aucune information correspondante n'a ete trouvee dans le contexte fourni.",
+        }.get(language, "Im bereitgestellten Kontext wurden keine passenden Informationen gefunden.")
+        fallback_missing = {
+            "de": f"Keine relevanten Kontextstellen zur Frage vorhanden: {question}",
+            "en": f"No relevant context passages available for the question: {question}",
+            "fr": f"Aucun passage de contexte pertinent disponible pour la question: {question}",
+        }.get(language, f"Keine relevanten Kontextstellen zur Frage vorhanden: {question}")
         return {
-            "answer": "Im bereitgestellten Kontext wurden keine passenden Informationen gefunden.",
+            "answer": fallback_answer,
             "key_points": [],
             "sources": [],
-            "missing_info": [f"Keine relevanten Kontextstellen zur Frage vorhanden: {question}"],
+            "missing_info": [fallback_missing],
         }
 
     context_text = "\n\n".join(
@@ -124,12 +148,16 @@ def answer_with_context(question: str, contexts: list[dict]) -> dict:
     )
     allowed_sources = {(int(c["document_id"]), str(c["chunk_id"])) for c in contexts}
     system_prompt = (
-        "Du bist ein deutschsprachiger Assistent für Wohnungseigentümer. Nutze AUSSCHLIESSLICH den bereitgestellten Kontext.\n"
-        "Wenn eine Information im Kontext nicht vorkommt, schreibe sie unter missing_info und rate nicht.\n"
-        "Antworte knapp, konkret und verständlich. Zahlen/Termine nur nennen, wenn sie im Kontext stehen.\n"
+        "Du bist ein Assistent fuer Wohnungseigentuemer. Nutze AUSSCHLIESSLICH den bereitgestellten Kontext.\n"
+        "Der Kontext ist in der Originalsprache der Dokumente (meist Deutsch). Lies und interpretiere ihn unveraendert.\n"
+        f"Antworte in {output_language} und schreibe auch key_points in {output_language}.\n"
+        "Wenn Informationen im Kontext fehlen, liste sie unter missing_info auf und rate nicht.\n"
+        "Behalte Zahlen, Daten, Waehrungen und Betraege exakt wie im Kontext bei.\n"
+        "Erklaere juristische und finanzielle Begriffe in einfacher Sprache fuer Nicht-Muttersprachler.\n"
+        "Uebersetze, aendere oder paraphrasiere Quellenreferenzen nicht; DOC/chunk-Bezeichner muessen unveraendert bleiben.\n"
         "Gib ausschließlich JSON im Format zurück:\n"
         "{\"answer\":\"...\",\"key_points\":[\"...\"],\"sources\":[{\"document_id\":number,\"chunk_id\":\"...\"}],\"missing_info\":[\"...\"]}\n"
-        "Die sources sollen die DOC/Chunk Labels referenzieren, die im Kontext stehen."
+        "Die sources duerfen nur DOC/chunk-Labels referenzieren, die im Kontext vorhanden sind."
     )
 
     try:
@@ -160,3 +188,42 @@ def answer_with_context(question: str, contexts: list[dict]) -> dict:
         }
     except Exception as e:
         raise RuntimeError("Chat completion response parsing failed") from e
+
+
+def translate_timeline_fields(title: str, description: str, target_language: str) -> dict:
+    target_label = {"de": "German", "en": "English", "fr": "French"}.get(target_language)
+    if not target_label:
+        raise RuntimeError("Unsupported translation language")
+
+    system_prompt = (
+        "You are a strict translation engine.\n"
+        f"Translate German source text to {target_label}.\n"
+        "Rules:\n"
+        "1) Translate only, no paraphrasing.\n"
+        "2) Keep meaning, tone, and level of detail exactly.\n"
+        "3) Keep numbers, units, and punctuation unchanged unless grammar requires adaptation.\n"
+        "4) Return only JSON with keys title and description.\n"
+        "5) Do not add comments, notes, or extra keys."
+    )
+    payload = {"title": title, "description": description}
+
+    try:
+        resp = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+    except Exception as e:
+        raise RuntimeError("Timeline translation request to OpenAI failed") from e
+
+    try:
+        content = (resp.choices[0].message.content or "").strip()
+        data = json.loads(content)
+        translated = TimelineTextTranslation.model_validate(data)
+        return translated.model_dump()
+    except Exception as e:
+        raise RuntimeError("Timeline translation response parsing failed") from e

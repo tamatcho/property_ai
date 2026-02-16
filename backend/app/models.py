@@ -1,4 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Float, LargeBinary
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    ForeignKey,
+    Float,
+    LargeBinary,
+    UniqueConstraint,
+)
 from datetime import datetime
 from .db import Base
 
@@ -34,7 +44,34 @@ class TimelineItem(Base):
     category = Column(String, nullable=False)
     amount_eur = Column(Float, nullable=True)
     description = Column(Text, nullable=False)
+    source_quote = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class TimelineItemTranslation(Base):
+    __tablename__ = "timeline_item_translations"
+    __table_args__ = (
+        UniqueConstraint("timeline_item_id", "language", name="uq_timeline_item_language"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    timeline_item_id = Column(
+        Integer,
+        ForeignKey("timeline_items.id"),
+        index=True,
+        nullable=False,
+    )
+    language = Column(String(2), index=True, nullable=False)
+    translated_title = Column(Text, nullable=False)
+    translated_description = Column(Text, nullable=False)
+    source_fingerprint = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
 
 
 class User(Base):

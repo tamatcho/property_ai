@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from typing import Literal
 from ..firebase_auth import get_current_user
 from ..db import get_db
 from ..models import User
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/chat", tags=["chat"], dependencies=[Depends(get_curr
 class ChatRequest(BaseModel):
     question: str
     property_id: int | None = None
+    language: Literal["de", "en", "fr"] = "de"
 
 @router.post("")
 def chat(
@@ -27,7 +29,7 @@ def chat(
 
     try:
         contexts = search(question, db=db, user_id=current_user.id, property_id=req.property_id, k=6)
-        answer_json = answer_with_context(question, contexts)
+        answer_json = answer_with_context(question, contexts, language=req.language)
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
     except Exception:
