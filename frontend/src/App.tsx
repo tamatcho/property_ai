@@ -99,7 +99,8 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authPending, setAuthPending] = useState(false);
-  const [firebaseIdToken, setFirebaseIdToken] = useState(() => localStorage.getItem(AUTH_TOKEN_KEY) || "");
+  const [firebaseIdToken, setFirebaseIdToken] = useState("");
+  const [authListenerReady, setAuthListenerReady] = useState(false);
   const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [newPropertyName, setNewPropertyName] = useState("");
   const [propertiesPending, setPropertiesPending] = useState(false);
@@ -156,16 +157,31 @@ export default function App() {
   }, [selectedLanguage]);
 
   useEffect(() => {
-    if (firebaseIdToken) {
-      localStorage.setItem(AUTH_TOKEN_KEY, firebaseIdToken);
-      setApiAuthToken(firebaseIdToken);
-      return;
-    }
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    setApiAuthToken(null);
+    setApiAuthToken(firebaseIdToken || null);
   }, [firebaseIdToken]);
 
   useEffect(() => {
+    let cancelled = false;
+    const forceLoggedOutOnBoot = async () => {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      setApiAuthToken(null);
+      setFirebaseIdToken("");
+      try {
+        await signOut(auth);
+      } catch {
+        // ignore startup sign-out errors
+      } finally {
+        if (!cancelled) setAuthListenerReady(true);
+      }
+    };
+    void forceLoggedOutOnBoot();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authListenerReady) return;
     const unsubscribe = onIdTokenChanged(auth, async (user: User | null) => {
       if (!user) {
         setFirebaseIdToken("");
@@ -175,7 +191,7 @@ export default function App() {
       setFirebaseIdToken(token);
     });
     return unsubscribe;
-  }, []);
+  }, [authListenerReady]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -273,7 +289,6 @@ export default function App() {
         try {
           const refreshedToken = await firebaseUser.getIdToken(true);
           setFirebaseIdToken(refreshedToken);
-          localStorage.setItem(AUTH_TOKEN_KEY, refreshedToken);
           setApiAuthToken(refreshedToken);
           return await fetchSession();
         } catch (retryError) {
@@ -330,7 +345,6 @@ export default function App() {
       const creds = await signInWithEmailAndPassword(auth, email, authPassword);
       const token = await creds.user.getIdToken();
       setFirebaseIdToken(token);
-      localStorage.setItem(AUTH_TOKEN_KEY, token);
       setApiAuthToken(token);
 
       const me = await syncBackendSessionAfterFirebaseAuth(creds.user);
@@ -360,7 +374,6 @@ export default function App() {
       const creds = await createUserWithEmailAndPassword(auth, email, authPassword);
       const token = await creds.user.getIdToken();
       setFirebaseIdToken(token);
-      localStorage.setItem(AUTH_TOKEN_KEY, token);
       setApiAuthToken(token);
 
       const me = await syncBackendSessionAfterFirebaseAuth(creds.user);
