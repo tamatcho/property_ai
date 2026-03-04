@@ -161,6 +161,9 @@ Ausgabeformat:
             timeout=settings.TIMELINE_EXTRACTION_TIMEOUT_SECONDS,
         )
     except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"OPENAI API FEHLER: {str(e)}")
+        print(f"!!! OPENAI API ERROR !!! -> {str(e)}", flush=True)
         message = str(e).lower()
         if "timeout" in message or "timed out" in message:
             raise RuntimeError("Timeline extraction request timed out") from e
