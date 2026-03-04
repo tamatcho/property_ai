@@ -1436,7 +1436,7 @@ export default function App() {
               </div>
             </section>
 
-            <section className="layout-main" style={{ flexDirection: 'row', alignItems: 'flex-start', padding: 0, gap: 0, height: 'calc(100vh - 100px)' }}>
+            <section className="flex flex-col md:flex-row w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-12" style={{ minHeight: '600px' }}>
               {/* Navigation Sidebar */}
               <div className="w-64 shrink-0 p-4 border-r bg-white flex flex-col gap-4 h-full overflow-y-auto hidden md:flex animate-in slide-in-from-left-4">
                 <div className="px-3">
