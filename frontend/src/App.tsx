@@ -1,10 +1,12 @@
 import type { KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatCard from "./components/cards/ChatCard";
+import DashboardCard from "./components/cards/DashboardCard";
 import TimelineCard from "./components/cards/TimelineCard";
 import UploadCard from "./components/cards/UploadCard";
 import TaxHelpCard from "./components/cards/TaxHelpCard";
 import ToastContainer from "./components/ToastContainer";
+import ViewTabs, { type AppView } from "./components/ViewTabs";
 import { ApiError, apiFetch, deleteChatHistory, fetchChatHistory, fetchUploadJobStatus, normalizeApiError, setApiAuthToken, uploadWithProgress } from "./lib/api";
 import { auth } from "./lib/firebase";
 import {
@@ -30,7 +32,9 @@ const TIMELINE_REPROCESS_TIMEOUT_MS = 120000;
 const EXAMPLE_QUESTIONS = [
   "Welche Zahlungen sind 2026 fällig?",
   "Wann ist die nächste Eigentümerversammlung?",
-  "Welche Fristen stehen bald an?"
+  "Welche Fristen stehen bald an?",
+  "Wie hoch sind meine §35a-relevanten Kosten insgesamt?",
+  "Gibt es Trends bei meinen Instandhaltungskosten?"
 ];
 type AppLanguage = "de" | "en" | "fr";
 
@@ -146,8 +150,7 @@ export default function App() {
   const [timelineCategory, setTimelineCategory] = useState("");
   const [lastTimelineAction, setLastTimelineAction] = useState<"raw" | "load" | null>(null);
 
-  // New states for the PropPulse specific active tabs
-  const [activeTab, setActiveTab] = useState<"dashboard" | "documents" | "tax" | "assistant">("documents");
+  const [activeTab, setActiveTab] = useState<AppView>("dashboard");
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const chatHistoryRef = useRef<HTMLDivElement>(null);
@@ -1358,7 +1361,7 @@ export default function App() {
                   </div>
                 </div>
                 <h1>Dokumente verstehen. Fragen stellen. Fristen sehen.</h1>
-                <p className="sub">Upload links, Timeline rechts, Chat unten.</p>
+                <p className="sub">Dashboard fuer den Ueberblick, danach Dokumente, Timeline und Chat.</p>
                 <div className="col">
                   <div className="row wrap">
                     <span>Eingeloggt als: <strong>{currentUser.email}</strong></span>
@@ -1436,49 +1439,33 @@ export default function App() {
               </div>
             </section>
 
-            <section className="flex flex-col md:flex-row w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-12" style={{ minHeight: '600px' }}>
-              {/* Navigation Sidebar */}
+            <section className="flex flex-col md:flex-row w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-12" style={{ minHeight: "600px" }}>
               <div className="w-64 shrink-0 p-4 border-r bg-white flex flex-col gap-4 h-full overflow-y-auto hidden md:flex animate-in slide-in-from-left-4">
                 <div className="px-3">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Ansichten</h3>
-                  <nav className="space-y-1">
-                    <button
-                      onClick={() => setActiveTab("documents")}
-                      className={`w-full flex items-center justify-start gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === "documents" ? "bg-brand-50 text-brand-700 font-semibold" : "text-gray-600 hover:bg-gray-50 font-medium"
-                        }`}
-                    >
-                      <svg className="w-5 h-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                      Dokumente
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("tax")}
-                      className={`w-full flex items-center justify-start gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === "tax" ? "bg-brand-50 text-brand-700 font-semibold" : "text-gray-600 hover:bg-gray-50 font-medium"
-                        }`}
-                    >
-                      <svg className="w-5 h-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                      Steuerhilfe
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("assistant")}
-                      className={`w-full flex items-center justify-start gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${activeTab === "assistant" ? "bg-brand-50 text-brand-700 font-semibold" : "text-gray-600 hover:bg-gray-50 font-medium"
-                        }`}
-                    >
-                      <svg className="w-5 h-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
-                      Chat
-                    </button>
-                  </nav>
+                  <ViewTabs activeTab={activeTab} onChange={setActiveTab} orientation="vertical" />
                 </div>
               </div>
 
               <div className="flex-1 h-full overflow-x-hidden overflow-y-auto bg-gray-50 p-4 md:p-6 lg:p-8 flex items-start justify-center">
+                <div className="w-full md:hidden mb-4">
+                  <ViewTabs
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                    orientation="horizontal"
+                    className="bg-white border border-gray-200 rounded-xl p-2 shadow-sm"
+                  />
+                </div>
 
-                {activeTab === "tax" ? (
+                {activeTab === "dashboard" ? (
+                  <DashboardCard
+                    documents={documents}
+                    timelineItems={timelineItems}
+                    onOpenDocuments={() => setActiveTab("documents")}
+                    onOpenTax={() => setActiveTab("tax")}
+                    onOpenAssistant={() => setActiveTab("assistant")}
+                  />
+                ) : activeTab === "tax" ? (
                   <TaxHelpCard documents={documents} />
                 ) : activeTab === "assistant" ? (
                   <div className="w-full max-w-4xl">
