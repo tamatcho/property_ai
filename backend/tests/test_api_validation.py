@@ -638,7 +638,28 @@ def test_timeline_rebuild_continues_when_single_document_extraction_fails(auth_d
     assert res["documents_processed"] == 1
     assert len(res["documents_failed"]) == 1
     assert res["documents_failed"][0]["document_id"] == doc2.id
-    assert res["documents_failed"][0]["reason"] == "document_timeline_extraction_failed"
+    assert res["documents_failed"][0]["reason"] == "Timeline extraction response parsing failed"
+
+
+def test_timeline_rebuild_all_failed_returns_detail_with_document_reason(auth_db, monkeypatch):
+    user = _seed_user(auth_db, "rebuild-all-fail@example.com")
+    property_obj = _seed_property(auth_db, user.id, "RebuildAllFail")
+    doc = Document(property_id=property_obj.id, filename="broken.pdf", path=None, extracted_text="x")
+    auth_db.add(doc)
+    auth_db.commit()
+    auth_db.refresh(doc)
+
+    def fake_extract_and_store(_db, _doc, raw_text=None):
+        raise RuntimeError("Timeline extraction request to OpenAI failed")
+
+    monkeypatch.setattr("app.routes.timeline.extract_and_store_timeline_for_document", fake_extract_and_store)
+    with pytest.raises(HTTPException) as exc:
+        timeline_rebuild(request=_make_request(), property_id=property_obj.id, db=auth_db, current_user=user)
+    assert exc.value.status_code == 502
+    detail = str(exc.value.detail)
+    assert "failed for all selected documents" in detail
+    assert "broken.pdf" in detail
+    assert "OpenAI failed" in detail
 
 
 def test_delete_document_removes_document_chunks_and_timeline(auth_db):

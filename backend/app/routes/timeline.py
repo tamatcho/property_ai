@@ -19,6 +19,25 @@ router = APIRouter(prefix="/timeline", tags=["timeline"], dependencies=[Depends(
 
 SUPPORTED_TIMELINE_LANGUAGES = {"de", "en", "fr"}
 
+
+def _format_failed_documents_detail(base_message: str, failed_documents: list[dict]) -> str:
+    if not failed_documents:
+        return base_message
+
+    snippets: list[str] = []
+    for item in failed_documents[:3]:
+        filename = item.get("filename") or f"Dokument {item.get('document_id', '?')}"
+        reason = str(item.get("reason") or "unknown_error").replace("\n", " ").strip()
+        if len(reason) > 120:
+            reason = reason[:117] + "..."
+        snippets.append(f"{filename}: {reason}")
+
+    remaining = len(failed_documents) - len(snippets)
+    suffix = "; ".join(snippets)
+    if remaining > 0:
+        suffix = f"{suffix}; +{remaining} weitere"
+    return f"{base_message}. {suffix}"
+
 class TimelineRequest(BaseModel):
     raw_text: str
 
@@ -206,7 +225,13 @@ def timeline_extract_documents(
 
     if not merged_items and failed_documents:
         db.rollback()
-        raise HTTPException(status_code=502, detail="Timeline extraction failed for all selected documents")
+        raise HTTPException(
+            status_code=502,
+            detail=_format_failed_documents_detail(
+                "Timeline extraction failed for all selected documents",
+                failed_documents,
+            ),
+        )
 
     try:
         db.commit()
@@ -245,13 +270,13 @@ def timeline_rebuild(
             items = extract_and_store_timeline_for_document(db, doc)
             items_count += len(items)
             processed_documents += 1
-        except RuntimeError:
+        except RuntimeError as e:
             db.rollback()
             failed_documents.append(
                 {
                     "document_id": doc.id,
                     "filename": doc.filename,
-                    "reason": "document_timeline_extraction_failed",
+                    "reason": str(e) or "document_timeline_extraction_failed",
                 }
             )
         except Exception:
@@ -265,7 +290,13 @@ def timeline_rebuild(
             )
 
     if processed_documents == 0 and failed_documents:
-        raise HTTPException(status_code=502, detail="Timeline extraction failed for all selected documents")
+        raise HTTPException(
+            status_code=502,
+            detail=_format_failed_documents_detail(
+                "Timeline extraction failed for all selected documents",
+                failed_documents,
+            ),
+        )
 
     try:
         db.commit()
