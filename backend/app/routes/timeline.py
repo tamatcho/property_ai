@@ -218,9 +218,13 @@ def timeline_extract_documents(
             )
         except RuntimeError as e:
             failed_documents.append({"document_id": doc.id, "filename": doc.filename, "reason": str(e)})
-        except Exception:
+        except Exception as e:
             failed_documents.append(
-                {"document_id": doc.id, "filename": doc.filename, "reason": "document_timeline_extraction_failed"}
+                {
+                    "document_id": doc.id,
+                    "filename": doc.filename,
+                    "reason": str(e) or "document_timeline_extraction_failed",
+                }
             )
 
     if not merged_items and failed_documents:
@@ -279,13 +283,13 @@ def timeline_rebuild(
                     "reason": str(e) or "document_timeline_extraction_failed",
                 }
             )
-        except Exception:
+        except Exception as e:
             db.rollback()
             failed_documents.append(
                 {
                     "document_id": doc.id,
                     "filename": doc.filename,
-                    "reason": "document_timeline_rebuild_failed",
+                    "reason": str(e) or "document_timeline_rebuild_failed",
                 }
             )
 

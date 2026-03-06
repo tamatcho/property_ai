@@ -68,7 +68,10 @@ class TimelineExtraction(BaseModel):
 
 
 def _compress_document_for_timeline(document_text: str, max_chars: int) -> str:
-    text = (document_text or "").strip()
+    if isinstance(document_text, bytes):
+        text = document_text.decode("utf-8", errors="ignore").strip()
+    else:
+        text = (document_text or "").strip()
     if not text:
         return ""
     if len(text) <= max_chars:
