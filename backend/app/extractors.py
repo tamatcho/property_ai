@@ -236,7 +236,7 @@ def extract_timeline(document_text: str) -> TimelineExtraction:
     )
     try:
         resp = client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
+            model=settings.EXTRACTION_MODEL,
             messages=[
                 {
                     "role": "system",

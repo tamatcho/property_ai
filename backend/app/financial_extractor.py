@@ -71,7 +71,7 @@ Du analysierst dieses Dokument einer deutschen Hausverwaltung oder eines Immobil
 
     try:
         resp = client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
+            model=settings.EXTRACTION_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text},
