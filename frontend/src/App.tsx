@@ -1425,8 +1425,8 @@ export default function App() {
               </div>
             </section>
 
-            <section className="flex flex-col md:flex-row w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-12" style={{ minHeight: "600px" }}>
-              <div className="w-64 shrink-0 p-4 border-r bg-white flex flex-col gap-4 h-full overflow-y-auto hidden md:flex animate-in slide-in-from-left-4">
+            <section className="flex flex-col md:flex-row w-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-visible md:overflow-hidden mb-8 md:mb-12 md:min-h-[600px]">
+              <div className="w-56 shrink-0 p-3 border-r bg-white flex flex-col gap-3 h-full overflow-y-auto hidden md:flex animate-in slide-in-from-left-4">
                 <div className="px-3">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Ansichten</h3>
                   <ViewTabs activeTab={activeTab} onChange={setActiveTab} orientation="vertical" />
