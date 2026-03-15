@@ -116,7 +116,7 @@ def list_timeline(
 
         changed_cache = False
         if pending_items:
-            with ThreadPoolExecutor(max_workers=8) as executor:
+            with ThreadPoolExecutor(max_workers=16) as executor:
                 future_to_item = {
                     executor.submit(
                         translate_timeline_fields,

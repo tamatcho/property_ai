@@ -289,6 +289,7 @@ def translate_timeline_fields(title: str, description: str, target_language: str
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
             response_format={"type": "json_object"},
+            timeout=20.0,
         )
         content = (resp.choices[0].message.content or "").strip()
         return _parse_translation_payload(content)
@@ -311,6 +312,7 @@ def translate_timeline_fields(title: str, description: str, target_language: str
                 {"role": "system", "content": fallback_prompt},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
+            timeout=20.0,
         )
         fallback_content = (fallback.choices[0].message.content or "").strip()
         return _parse_translation_payload(fallback_content)
