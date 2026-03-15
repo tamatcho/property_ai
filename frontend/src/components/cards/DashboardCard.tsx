@@ -104,7 +104,7 @@ export default function DashboardCard({
     <section className="w-full max-w-6xl">
       <header className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-        <p className="text-gray-600">Schneller Ueberblick ueber Dokumente, Fristen und steuerliche Potenziale.</p>
+        <p className="text-gray-600">Schneller Überblick über Dokumente, Fristen und steuerliche Potenziale.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -139,7 +139,7 @@ export default function DashboardCard({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <section className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Naechste Termine</h3>
+            <h3 className="font-semibold text-gray-900">Nächste Termine</h3>
             <span className="text-xs text-gray-500">ab heute</span>
           </div>
           {upcomingItems.length === 0 ? (

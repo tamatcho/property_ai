@@ -4,6 +4,7 @@ import { TimelineItem, UiState } from "../../types";
 
 type Props = {
   disabled?: boolean;
+  language?: string;
   state: UiState;
   message: string;
   details?: string;
@@ -27,7 +28,58 @@ type Props = {
   normalizeCategory: (category: string) => string;
 };
 
+const TL: Record<string, Record<string, string>> = {
+  de: {
+    title: "Timeline Extraktion", noResult: "Kein Timeline-Ergebnis", noResultSub: "Aktualisiere die Timeline aus deinen hochgeladenen Dokumenten.",
+    load: "Timeline laden", reExtract: "Neu extrahieren", exportCsv: "CSV exportieren", retry: "Erneut versuchen",
+    noDocs: "Keine hochgeladenen Dokumente. Bitte zuerst ein PDF hochladen.",
+    searchPlaceholder: "Suche in Titel/Beschreibung...", allCategories: "Alle Kategorien",
+    advanced: "Erweitert", rawTextPlaceholder: "Dokumenttext einfügen...", extractRaw: "Aus Rohtext extrahieren",
+    upcoming: "Aktuell & Bald", noUpcoming: "Keine aktuellen oder bald relevanten Einträge.",
+    archive: "Archiv (Vergangene Ereignisse)", show: "Anzeigen", hide: "Ausblenden",
+    noFilter: "Keine Einträge für den aktuellen Filter.", noTimeline: "Noch keine Timeline",
+    noTimelineSub: "Text eingeben und Extraktion starten.",
+    noTitle: "Ohne Titel", dateLabel: "Datum:", timeLabel: "Zeit:", sourceLabel: "Quelle:",
+    evidence: "Beleg", evidenceLabel: "Beleg:", rawSource: "Rohtext-Extraktion",
+    catDeadline: "Frist", catPayment: "Zahlung", catMeeting: "Termin", catInfo: "Info", catTax: "Steuer",
+    csvHeaders: "Datum;Uhrzeit;Titel;Kategorie;Betrag (EUR);Beschreibung;Quelle;Beleg",
+  },
+  en: {
+    title: "Timeline", noResult: "No timeline results", noResultSub: "Load the timeline from your uploaded documents.",
+    load: "Load timeline", reExtract: "Re-extract", exportCsv: "Export CSV", retry: "Retry",
+    noDocs: "No documents uploaded. Please upload a PDF first.",
+    searchPlaceholder: "Search title/description...", allCategories: "All categories",
+    advanced: "Advanced", rawTextPlaceholder: "Paste document text...", extractRaw: "Extract from raw text",
+    upcoming: "Upcoming", noUpcoming: "No current or upcoming entries.",
+    archive: "Archive (Past Events)", show: "Show", hide: "Hide",
+    noFilter: "No entries match the current filter.", noTimeline: "No timeline yet",
+    noTimelineSub: "Enter text and start extraction.",
+    noTitle: "No title", dateLabel: "Date:", timeLabel: "Time:", sourceLabel: "Source:",
+    evidence: "Evidence", evidenceLabel: "Evidence:", rawSource: "Raw text extraction",
+    catDeadline: "Deadline", catPayment: "Payment", catMeeting: "Meeting", catInfo: "Info", catTax: "Tax",
+    csvHeaders: "Date;Time;Title;Category;Amount (EUR);Description;Source;Evidence",
+  },
+  fr: {
+    title: "Chronologie", noResult: "Aucun résultat", noResultSub: "Chargez la chronologie depuis vos documents.",
+    load: "Charger", reExtract: "Ré-extraire", exportCsv: "Exporter CSV", retry: "Réessayer",
+    noDocs: "Aucun document. Veuillez d'abord télécharger un PDF.",
+    searchPlaceholder: "Rechercher titre/description...", allCategories: "Toutes les catégories",
+    advanced: "Avancé", rawTextPlaceholder: "Coller le texte du document...", extractRaw: "Extraire du texte brut",
+    upcoming: "À venir", noUpcoming: "Aucune entrée actuelle ou à venir.",
+    archive: "Archives (Événements passés)", show: "Afficher", hide: "Masquer",
+    noFilter: "Aucune entrée ne correspond au filtre.", noTimeline: "Pas encore de chronologie",
+    noTimelineSub: "Entrez du texte et lancez l'extraction.",
+    noTitle: "Sans titre", dateLabel: "Date :", timeLabel: "Heure :", sourceLabel: "Source :",
+    evidence: "Justificatif", evidenceLabel: "Justificatif :", rawSource: "Extraction brute",
+    catDeadline: "Échéance", catPayment: "Paiement", catMeeting: "Réunion", catInfo: "Info", catTax: "Taxe",
+    csvHeaders: "Date;Heure;Titre;Catégorie;Montant (EUR);Description;Source;Justificatif",
+  },
+};
+
 export default function TimelineCard(props: Props) {
+  const t = TL[props.language ?? "de"] ?? TL.de;
+  const locale = props.language === "en" ? "en-GB" : props.language === "fr" ? "fr-FR" : "de-DE";
+
   const [archiveMounted, setArchiveMounted] = useState(false);
   const [archiveClosing, setArchiveClosing] = useState(false);
   const [lastAnimatedSeed, setLastAnimatedSeed] = useState<number | null>(null);
@@ -35,7 +87,7 @@ export default function TimelineCard(props: Props) {
   const formatGroupDate = (dateIso: string) => {
     const date = new Date(dateIso);
     if (Number.isNaN(date.getTime())) return dateIso;
-    return date.toLocaleDateString("de-DE");
+    return date.toLocaleDateString(locale);
   };
 
   const shorten = (value: string, maxLen = 180) => {
@@ -55,11 +107,11 @@ export default function TimelineCard(props: Props) {
   };
 
   const categoryLabel: Record<string, string> = {
-    deadline: "Frist",
-    payment: "Zahlung",
-    meeting: "Termin",
-    info: "Info",
-    tax: "Steuer",
+    deadline: t.catDeadline,
+    payment: t.catPayment,
+    meeting: t.catMeeting,
+    info: t.catInfo,
+    tax: t.catTax,
   };
 
   const shouldAnimateBatch =
@@ -104,23 +156,23 @@ export default function TimelineCard(props: Props) {
                   key={cardId}
                 >
                   <div className="timeline-card-head">
-                    <div className="timeline-title">{item.title || "Ohne Titel"}</div>
+                    <div className="timeline-title">{item.title || t.noTitle}</div>
                     <span className={`badge badge-${props.normalizeCategory(item.category || "info")}`}>
                       {categoryLabel[props.normalizeCategory(item.category || "info")] ?? props.normalizeCategory(item.category || "info")}
                     </span>
                   </div>
                   <div className="timeline-meta">
-                    <span>Datum: {item.date_iso || "-"}</span>
-                    {item.time_24h ? <span>Zeit: {item.time_24h}</span> : null}
+                    <span>{t.dateLabel} {item.date_iso || "-"}</span>
+                    {item.time_24h ? <span>{t.timeLabel} {item.time_24h}</span> : null}
                   </div>
                   <div className="timeline-desc">{shorten(item.description || "")}</div>
                   {typeof item.amount_eur === "number" ? (
                     <div className="timeline-amount">
-                      {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(item.amount_eur)}
+                      {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(item.amount_eur)}
                     </div>
                   ) : null}
                   <div className="timeline-footer">
-                    <div className="timeline-source">Quelle: {item.source || item.filename || "Rohtext-Extraktion"}</div>
+                    <div className="timeline-source">{t.sourceLabel} {item.source || item.filename || t.rawSource}</div>
                     {hasQuote ? (
                       <button
                         type="button"
@@ -129,13 +181,13 @@ export default function TimelineCard(props: Props) {
                         aria-controls={`quote-${cardId}`}
                         onClick={() => toggleQuote(cardId)}
                       >
-                        Beleg ⓘ
+                        {t.evidence} ⓘ
                       </button>
                     ) : null}
                   </div>
                   {hasQuote && isQuoteOpen ? (
                     <div className="timeline-quote-popover" id={`quote-${cardId}`} role="note">
-                      <div className="timeline-quote-label">Beleg:</div>
+                      <div className="timeline-quote-label">{t.evidenceLabel}</div>
                       <div className="timeline-quote-text">{quote}</div>
                     </div>
                   ) : null}
@@ -253,7 +305,7 @@ export default function TimelineCard(props: Props) {
 
   const exportTimelineCsv = () => {
     if (props.timelineItems.length === 0) return;
-    const headers = ["Datum", "Uhrzeit", "Titel", "Kategorie", "Betrag (EUR)", "Beschreibung", "Quelle", "Beleg"];
+    const headers = t.csvHeaders.split(";");
     const rows = props.timelineItems.map((item) => [
       item.date_iso || "",
       item.time_24h || "",
@@ -277,13 +329,13 @@ export default function TimelineCard(props: Props) {
   return (
     <section id="timelineCard" className="card reveal" data-state={props.state}>
       <div className="card-title-row">
-        <h2>Timeline Extraktion</h2>
+        <h2>{t.title}</h2>
         {props.state === "loading" ? <span className="card-title-spinner" aria-hidden="true" /> : null}
       </div>
       {props.timelineItems.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-title">Kein Timeline-Ergebnis</div>
-          <div>Aktualisiere die Timeline aus deinen hochgeladenen Dokumenten.</div>
+          <div className="empty-state-title">{t.noResult}</div>
+          <div>{t.noResultSub}</div>
         </div>
       ) : null}
 
@@ -292,27 +344,27 @@ export default function TimelineCard(props: Props) {
           <StatusBanner state={props.state} message={props.message} details={props.details} />
           <div className="row wrap">
             <button className="btn btn-secondary" onClick={props.onLoadFromStore} disabled={props.disabled || !props.hasDocuments || props.pending}>
-              Timeline laden
+              {t.load}
             </button>
             <button className="chip" onClick={props.onExtractDocuments} disabled={props.disabled || !props.hasDocuments || props.pending} title="Führt KI-Extraktion für alle Dokumente erneut aus (kostet Tokens)">
-              Neu extrahieren
+              {t.reExtract}
             </button>
             {props.timelineItems.length > 0 ? (
               <button className="chip" onClick={exportTimelineCsv} disabled={props.pending}>
-                CSV exportieren
+                {t.exportCsv}
               </button>
             ) : null}
           </div>
           {!props.hasDocuments ? (
             <div className="timeline-hint">
-              Keine hochgeladenen Dokumente gefunden. Bitte zuerst im Upload-Bereich mindestens ein PDF hochladen.
+              {t.noDocs}
             </div>
           ) : null}
 
           {props.state === "error" ? (
             <div className="empty-actions">
               <button className="chip" disabled={props.pending || props.disabled} onClick={props.onRetry}>
-                Erneut versuchen
+                {t.retry}
               </button>
             </div>
           ) : null}
@@ -320,13 +372,13 @@ export default function TimelineCard(props: Props) {
           <div className="timeline-tools">
             <input
               type="text"
-              placeholder="Suche in Titel/Beschreibung..."
+              placeholder={t.searchPlaceholder}
               value={props.timelineSearch}
               disabled={props.pending || props.disabled}
               onChange={(e) => props.onSearchChange(e.target.value)}
             />
             <select value={props.timelineCategory} disabled={props.pending || props.disabled} onChange={(e) => props.onCategoryChange(e.target.value)}>
-              <option value="">Alle Kategorien</option>
+              <option value="">{t.allCategories}</option>
               {props.timelineCategories.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
@@ -338,18 +390,18 @@ export default function TimelineCard(props: Props) {
 
         <div className="col">
         <details className="timeline-advanced">
-          <summary>Erweitert</summary>
+          <summary>{t.advanced}</summary>
           <div className="col">
             <textarea
               rows={8}
-              placeholder="Dokumenttext einfügen..."
+              placeholder={t.rawTextPlaceholder}
               value={props.timelineInput}
               disabled={props.pending || props.disabled}
               onChange={(e) => props.onInputChange(e.target.value)}
             />
             <div className="row wrap">
               <button className="btn" disabled={props.pending || props.disabled} onClick={props.onExtract}>
-                Aus Rohtext extrahieren
+                {t.extractRaw}
               </button>
             </div>
           </div>
@@ -361,28 +413,28 @@ export default function TimelineCard(props: Props) {
         <div className="timeline-list">
         {props.timelineItems.length === 0 ? (
           <div className="timeline-empty">
-            <span className="empty-state-title">Noch keine Timeline</span>
+            <span className="empty-state-title">{t.noTimeline}</span>
             <br />
-            Text eingeben und Extraktion starten.
+            {t.noTimelineSub}
           </div>
         ) : !hasFilteredResults() ? (
-          <div className="timeline-empty">Keine Einträge für den aktuellen Filter.</div>
+          <div className="timeline-empty">{t.noFilter}</div>
         ) : (
           <>
             {props.timelineCurrentGrouped.length > 0 ? (
               <section className="timeline-section">
-                <div className="timeline-section-title">Aktuell & Bald</div>
+                <div className="timeline-section-title">{t.upcoming}</div>
                 {renderGroupedCards(props.timelineCurrentGrouped, true, false)}
               </section>
             ) : (
-              <div className="timeline-empty">Keine aktuellen oder bald relevanten Einträge.</div>
+              <div className="timeline-empty">{t.noUpcoming}</div>
             )}
 
             {props.timelineArchiveGrouped.length > 0 ? (
               <section className="timeline-archive-shell">
                 <button type="button" className="timeline-archive-toggle" aria-expanded={archiveOpen} onClick={archiveOpen ? closeArchive : openArchive}>
-                  <span>Archiv (Vergangene Ereignisse)</span>
-                  <span className="timeline-archive-toggle-state">{archiveOpen ? "Ausblenden" : "Anzeigen"}</span>
+                  <span>{t.archive}</span>
+                  <span className="timeline-archive-toggle-state">{archiveOpen ? t.hide : t.show}</span>
                 </button>
                 {archiveMounted ? (
                   <div

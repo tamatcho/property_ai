@@ -578,12 +578,28 @@ select:focus-visible {
   font-size: 0.82rem;
   padding: 4px 10px;
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.chip:hover:not(:disabled) {
+  background: #dbeeff;
+  border-color: #8ab6e0;
+}
+
+.chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .chip.danger {
   border-color: #e8bfbf;
   background: #fff0f0;
   color: #9a2828;
+}
+
+.chip.danger:hover:not(:disabled) {
+  background: #ffe0e0;
+  border-color: #d09090;
 }
 
 .chat-history {

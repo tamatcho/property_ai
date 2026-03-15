@@ -29,13 +29,29 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const TIMELINE_LIST_TIMEOUT_MS = 90000;
 const TIMELINE_REBUILD_TIMEOUT_MS = 180000;
 const TIMELINE_REPROCESS_TIMEOUT_MS = 120000;
-const EXAMPLE_QUESTIONS = [
-  "Welche Zahlungen sind 2026 fällig?",
-  "Wann ist die nächste Eigentümerversammlung?",
-  "Welche Fristen stehen bald an?",
-  "Wie hoch sind meine §35a-relevanten Kosten insgesamt?",
-  "Gibt es Trends bei meinen Instandhaltungskosten?"
-];
+const EXAMPLE_QUESTIONS: Record<string, string[]> = {
+  de: [
+    "Welche Zahlungen sind 2026 fällig?",
+    "Wann ist die nächste Eigentümerversammlung?",
+    "Welche Fristen stehen bald an?",
+    "Wie hoch sind meine §35a-relevanten Kosten insgesamt?",
+    "Gibt es Trends bei meinen Instandhaltungskosten?",
+  ],
+  en: [
+    "Which payments are due in 2026?",
+    "When is the next owners' meeting?",
+    "Which deadlines are coming up soon?",
+    "What are my total §35a-deductible costs?",
+    "Are there trends in my maintenance costs?",
+  ],
+  fr: [
+    "Quels paiements sont dus en 2026 ?",
+    "Quand est la prochaine assemblée des copropriétaires ?",
+    "Quelles échéances approchent bientôt ?",
+    "Quel est le total de mes coûts déductibles §35a ?",
+    "Y a-t-il des tendances dans mes coûts de maintenance ?",
+  ],
+};
 type AppLanguage = "de" | "en" | "fr";
 
 function parseLanguage(raw: string | null): AppLanguage {
@@ -1228,7 +1244,7 @@ export default function App() {
                   >
                     <option value="de">Deutsch</option>
                     <option value="en">English</option>
-                    <option value="fr">Francais</option>
+                    <option value="fr">Français</option>
                   </select>
                 </div>
               </div>
@@ -1281,7 +1297,7 @@ export default function App() {
                   >
                     <option value="de">Deutsch</option>
                     <option value="en">English</option>
-                    <option value="fr">Francais</option>
+                    <option value="fr">Français</option>
                   </select>
                 </div>
               </div>
@@ -1326,12 +1342,12 @@ export default function App() {
                     >
                       <option value="de">Deutsch</option>
                       <option value="en">English</option>
-                      <option value="fr">Francais</option>
+                      <option value="fr">Français</option>
                     </select>
                   </div>
                 </div>
                 <h1>Dokumente verstehen. Fragen stellen. Fristen sehen.</h1>
-                <p className="sub">Dashboard fuer den Ueberblick, danach Dokumente, Timeline und Chat.</p>
+                <p className="sub">Dashboard für den Überblick, danach Dokumente, Timeline und Chat.</p>
                 <div className="col">
                   <div className="row wrap">
                     <span>Eingeloggt als: <strong>{currentUser.email}</strong></span>
@@ -1441,6 +1457,7 @@ export default function App() {
                   <div className="w-full max-w-4xl">
                     <ChatCard
                       disabled={!canWork}
+                      language={selectedLanguage}
                       state={chatState}
                       message={chatMessage}
                       details={chatDetails}
@@ -1448,7 +1465,7 @@ export default function App() {
                       chatQuestion={chatQuestion}
                       chatPending={chatPending}
                       hasDocuments={hasDocuments}
-                      exampleQuestions={EXAMPLE_QUESTIONS}
+                      exampleQuestions={EXAMPLE_QUESTIONS[selectedLanguage] ?? EXAMPLE_QUESTIONS.de}
                       documentsById={documentsById}
                       onQuestionChange={setChatQuestion}
                       onQuestionKeyDown={onChatQuestionKeyDown}
@@ -1492,6 +1509,7 @@ export default function App() {
                     <div className="w-full xl:w-96 shrink-0">
                       <TimelineCard
                         disabled={!canWork}
+                        language={selectedLanguage}
                         state={timelineState}
                         message={timelineMessage}
                         details={timelineDetails}
