@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 import csv
 import hashlib
@@ -114,37 +115,45 @@ def list_timeline(
             pending_items.append(item)
 
         changed_cache = False
-        for item in pending_items:
-            try:
-                translated = translate_timeline_fields(
-                    title=item.title,
-                    description=item.description,
-                    target_language=language,
-                )
-            except RuntimeError:
-                translated_fields[item.id] = (item.title, item.description)
-                continue
+        if pending_items:
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                future_to_item = {
+                    executor.submit(
+                        translate_timeline_fields,
+                        item.title,
+                        item.description,
+                        language,
+                    ): item
+                    for item in pending_items
+                }
+                for future in as_completed(future_to_item):
+                    item = future_to_item[future]
+                    try:
+                        translated = future.result()
+                    except RuntimeError:
+                        translated_fields[item.id] = (item.title, item.description)
+                        continue
 
-            translated_title = translated.get("title", item.title)
-            translated_description = translated.get("description", item.description)
-            translated_fields[item.id] = (translated_title, translated_description)
+                    translated_title = translated.get("title", item.title)
+                    translated_description = translated.get("description", item.description)
+                    translated_fields[item.id] = (translated_title, translated_description)
 
-            cached = cache_by_item_id.get(item.id)
-            if cached:
-                cached.translated_title = translated_title
-                cached.translated_description = translated_description
-                cached.source_fingerprint = source_fingerprints[item.id]
-            else:
-                db.add(
-                    TimelineItemTranslation(
-                        timeline_item_id=item.id,
-                        language=language,
-                        translated_title=translated_title,
-                        translated_description=translated_description,
-                        source_fingerprint=source_fingerprints[item.id],
-                    )
-                )
-            changed_cache = True
+                    cached = cache_by_item_id.get(item.id)
+                    if cached:
+                        cached.translated_title = translated_title
+                        cached.translated_description = translated_description
+                        cached.source_fingerprint = source_fingerprints[item.id]
+                    else:
+                        db.add(
+                            TimelineItemTranslation(
+                                timeline_item_id=item.id,
+                                language=language,
+                                translated_title=translated_title,
+                                translated_description=translated_description,
+                                source_fingerprint=source_fingerprints[item.id],
+                            )
+                        )
+                    changed_cache = True
 
         if changed_cache:
             try:
